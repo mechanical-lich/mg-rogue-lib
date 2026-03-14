@@ -140,7 +140,7 @@ func InflictDamage(attacker, defender *ecs.Entity) {
 			if attacker.HasComponent(rlcomponents.Description) && defender.HasComponent(rlcomponents.Description) {
 				atkName := attacker.GetComponent(rlcomponents.Description).(*rlcomponents.DescriptionComponent).Name
 				defName := defender.GetComponent(rlcomponents.Description).(*rlcomponents.DescriptionComponent).Name
-				message.PostMessage(atkName, fmt.Sprintf("hit %s for %d (%s)", defName, damage, damageType))
+				message.PostTaggedMessage("combat", atkName, fmt.Sprintf("hit %s for %d (%s)", defName, damage, damageType))
 			}
 		}
 	}
@@ -194,7 +194,7 @@ func Hit(level rlworld.LevelInterface, entity, entityHit *ecs.Entity, swap bool)
 		if entity.HasComponent(rlcomponents.Description) && entityHit.HasComponent(rlcomponents.Description) {
 			atkName := entity.GetComponent(rlcomponents.Description).(*rlcomponents.DescriptionComponent).Name
 			defName := entityHit.GetComponent(rlcomponents.Description).(*rlcomponents.DescriptionComponent).Name
-			message.PostMessage(atkName, fmt.Sprintf("missed %s", defName))
+			message.PostTaggedMessage("combat", atkName, fmt.Sprintf("missed %s", defName))
 		}
 	}
 
