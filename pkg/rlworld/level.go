@@ -38,4 +38,5 @@ type LevelInterface interface {
 	// Entity lists (read-only iteration)
 	GetEntities() []*ecs.Entity
 	GetStaticEntities() []*ecs.Entity
+	AreNeighborsTheSame(t *Tile) (top, bottom, left, right bool)
 }
