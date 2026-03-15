@@ -23,7 +23,7 @@ Rather than prescribing a specific game loop, the library is intentionally open:
 - **Status Conditions** — Poisoned, Burning, Alerted, Regeneration — each decaying over turns
 - **Door System** — Open/close state synced to sprite coordinates via a minimal interface
 - **Level Generation** — Perlin-noise overworld and island generators, room carvers, and entity cluster spawners
-- **World Interfaces** — `LevelInterface` and `TileInterface` contracts that abstract your concrete world implementation
+- **World Interfaces & Base Types** — `LevelInterface` and `TileInterface` contracts with ready-to-use GC-optimized `Level`, `Tile`, and `TileDefinition` base implementations
 - **Entity Helpers** — Stateless movement, facing, swapping, eating, and death detection in `rlentity`
 - **AI Navigation** — Target tracking, range checks, and path-following in `rlai`
 - **Cleanup System** — Dead-entity removal with drops, XP hooks, and `MyTurn` strip each frame
@@ -33,7 +33,7 @@ Rather than prescribing a specific game loop, the library is intentionally open:
 | Package | Description |
 |---------|-------------|
 | [`rlcomponents`](rlcomponents.html) | ECS component types and structs |
-| [`rlworld`](rlworld.html) | `LevelInterface` and `TileInterface` contracts |
+| [`rlworld`](rlworld.html) | `LevelInterface` / `TileInterface` contracts + GC-optimized base `Level`, `Tile`, and `TileDefinition` types |
 | [`rlai`](rlai.html) | AI navigation helpers (target tracking, range checks, path following) |
 | [`rlcombat`](rlcombat.html) | D&D-style melee combat pipeline |
 | [`rlentity`](rlentity.html) | Stateless entity helpers (move, face, eat, swap, death detection) |

@@ -23,31 +23,57 @@ go get github.com/mechanical-lich/ml-rogue-lib
 
 ML Rogue Lib is built around MLGE's ECS. Every game object is an `*ecs.Entity` carrying a set of `rlcomponents` structs. Systems iterate entities each frame and act on whichever components they require.
 
-The library does **not** own your game loop or your concrete level type. Instead it defines two interfaces — `rlworld.LevelInterface` and `rlworld.TileInterface` — that your level implementation must satisfy. All systems and helpers accept these interfaces, keeping the library decoupled from any specific game.
+The library provides two interfaces — `rlworld.LevelInterface` and `rlworld.TileInterface` — along with **base implementations** (`rlworld.Level` and `rlworld.Tile`) that you can use directly or embed in your own types. All systems and helpers accept the interfaces, keeping the library decoupled from any specific game.
 
 ## Minimal Integration
 
-### 1. Implement the world interfaces
+### 1. Load tile definitions
 
-```go
-// MyTile satisfies rlworld.TileInterface.
-type MyTile struct { X, Y, Z int; solid bool }
+Create a `tile_definitions.json` file:
 
-func (t *MyTile) Coords() (int, int, int)   { return t.X, t.Y, t.Z }
-func (t *MyTile) IsSolid() bool              { return t.solid }
-func (t *MyTile) IsWater() bool              { return false }
-func (t *MyTile) IsAir() bool                { return false }
-// ... implement PathID, PathNeighborsAppend, etc.
-
-// MyLevel satisfies rlworld.LevelInterface.
-type MyLevel struct { tiles []MyTile; entities []*ecs.Entity }
-
-func (l *MyLevel) GetWidth() int  { return 64 }
-func (l *MyLevel) GetHeight() int { return 64 }
-// ... implement remaining interface methods
+```json
+[
+  {"name": "air", "air": true, "variants": [{"variant": 0, "spriteX": 0, "spriteY": 0}]},
+  {"name": "grass", "variants": [{"variant": 0, "spriteX": 0, "spriteY": 16}]},
+  {"name": "wall", "solid": true, "variants": [{"variant": 0, "spriteX": 16, "spriteY": 0}]},
+  {"name": "water", "water": true, "variants": [{"variant": 0, "spriteX": 32, "spriteY": 0}]}
+]
 ```
 
-### 2. Spawn entities with components
+Load it at startup:
+
+```go
+import "github.com/mechanical-lich/ml-rogue-lib/pkg/rlworld"
+
+err := rlworld.LoadTileDefinitions("data/tile_definitions.json")
+if err != nil {
+    log.Fatal(err)
+}
+```
+
+### 2. Create a level
+
+Use the base `Level` directly, or embed it for game-specific fields:
+
+```go
+// Option A: Use the base directly
+level := rlworld.NewLevel(128, 128, 10)
+
+// Option B: Embed in a game-specific wrapper
+type GameLevel struct {
+    *rlworld.Level
+    lightOverlay *ebiten.Image
+}
+
+func NewGameLevel(w, h, d int) *GameLevel {
+    base := rlworld.NewLevel(w, h, d)
+    gl := &GameLevel{Level: base}
+    base.PathCostFunc = myPathCost(gl) // custom pathfinding
+    return gl
+}
+```
+
+### 3. Spawn entities with components
 
 ```go
 import (
@@ -55,7 +81,7 @@ import (
     "github.com/mechanical-lich/ml-rogue-lib/pkg/rlcomponents"
 )
 
-func spawnPlayer(level *MyLevel, x, y int) *ecs.Entity {
+func spawnPlayer(level rlworld.LevelInterface, x, y int) *ecs.Entity {
     e := &ecs.Entity{Blueprint: "player"}
     e.AddComponent(&rlcomponents.PositionComponent{X: x, Y: y, Z: 0})
     e.AddComponent(&rlcomponents.HealthComponent{MaxHealth: 20, Health: 20})
@@ -71,22 +97,23 @@ func spawnPlayer(level *MyLevel, x, y int) *ecs.Entity {
 }
 ```
 
-### 3. Register systems and run the game loop
+### 4. Register systems and run the game loop
 
 ```go
 import (
     "github.com/mechanical-lich/ml-rogue-lib/pkg/rlsystems"
+    "github.com/mechanical-lich/ml-rogue-lib/pkg/rlworld"
     "github.com/mechanical-lich/mlge/ecs"
 )
 
 type Game struct {
-    level    *MyLevel
+    level    *rlworld.Level
     systemMgr ecs.SystemManager
     cleanup  rlsystems.CleanUpSystem
 }
 
 func NewGame() *Game {
-    g := &Game{level: newMyLevel()}
+    g := &Game{level: rlworld.NewLevel(128, 128, 10)}
 
     // Register systems.
     g.systemMgr.AddSystem(rlsystems.NewAISystem())
@@ -107,6 +134,21 @@ func (g *Game) Update() error {
     // 2. Run all registered systems for every entity.
     g.systemMgr.UpdateSystemsForEntities(g.level, g.level.GetEntities())
     return nil
+}
+```
+
+## Custom Pathfinding Costs
+
+The base `Level` uses `DefaultPathCost` which rejects solid/water tiles and enforces stairs for Z transitions. To add game-specific logic (entity blocking, doors, factions), set `PathCostFunc`:
+
+```go
+level := rlworld.NewLevel(128, 128, 10)
+level.PathCostFunc = func(from, to *rlworld.Tile) float64 {
+    if rlworld.TileDefinitions[to.Type].Solid {
+        return 5000
+    }
+    // Check for blocking entities, doors, etc.
+    return 0
 }
 ```
 
