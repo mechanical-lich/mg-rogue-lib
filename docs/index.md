@@ -32,6 +32,7 @@ Rather than prescribing a specific game loop, the library is intentionally open:
 
 | Package | Description |
 |---------|-------------|
+| [`path`](path.html) | Graph-centric A\* pathfinding with a GC-invisible hot path |
 | [`rlcomponents`](rlcomponents.html) | ECS component types and structs |
 | [`rlworld`](rlworld.html) | `LevelInterface` / `TileInterface` contracts + GC-optimized base `Level`, `Tile`, and `TileDefinition` types |
 | [`rlai`](rlai.html) | AI navigation helpers (target tracking, range checks, path following) |
@@ -48,7 +49,7 @@ go get github.com/mechanical-lich/ml-rogue-lib
 
 ## Dependencies
 
-ML Rogue Lib depends on [MLGE](https://mechanical-lich.github.io/mlge) for the ECS foundation (`ecs.Entity`, `ecs.Component`), pathfinding (`path.Pather`), dice rolling, and message posting. It also uses `go-perlin` for procedural terrain generation.
+ML Rogue Lib depends on [MLGE](https://mechanical-lich.github.io/mlge) for the ECS foundation (`ecs.Entity`, `ecs.Component`), dice rolling, and message posting. It also uses `go-perlin` for procedural terrain generation. Pathfinding is provided by the bundled `pkg/path` package — no external pathfinding dependency.
 
 ## License
 

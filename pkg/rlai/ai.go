@@ -5,7 +5,6 @@ import (
 	"github.com/mechanical-lich/ml-rogue-lib/pkg/rlentity"
 	"github.com/mechanical-lich/ml-rogue-lib/pkg/rlworld"
 	"github.com/mechanical-lich/mlge/ecs"
-	"github.com/mechanical-lich/mlge/path"
 )
 
 // TrackTarget returns the unit delta needed to move from (x,y,z) toward (x2,y2,z2).
@@ -48,13 +47,13 @@ func WithinRangeCardinal(x, y, x2, y2, rangeX, rangeY int) bool {
 }
 
 // MoveTowardsTarget moves entity one step along a cached path toward (targetX,targetY,targetZ).
-// getPath is called to (re-)compute the path when needed.
+// getPath is called to (re-)compute the path when needed. Paths are stored as flat tile indices.
 // Returns true if a step was taken.
 func MoveTowardsTarget(
 	level rlworld.LevelInterface,
 	entity *ecs.Entity,
 	targetX, targetY, targetZ int,
-	getPath func(level rlworld.LevelInterface, from, to rlworld.TileInterface, reuse []path.Pather) []path.Pather,
+	getPath func(level rlworld.LevelInterface, from, to rlworld.TileInterface, reuse []int) []int,
 ) bool {
 	pc := entity.GetComponent(rlcomponents.Position).(*rlcomponents.PositionComponent)
 	mem := entity.GetComponent(rlcomponents.AIMemory).(*rlcomponents.AIMemoryComponent)
@@ -75,7 +74,11 @@ func MoveTowardsTarget(
 	}
 
 	for len(mem.CurrentSteps) > 1 {
-		next := mem.CurrentSteps[1].(rlworld.TileInterface)
+		next := level.GetTileIndex(mem.CurrentSteps[1])
+		if next == nil {
+			mem.CurrentSteps = nil
+			return false
+		}
 		nx, ny, nz := next.Coords()
 		if pc.GetX() == nx && pc.GetY() == ny && pc.GetZ() == nz {
 			mem.CurrentSteps = mem.CurrentSteps[1:]

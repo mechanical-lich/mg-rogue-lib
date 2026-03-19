@@ -80,17 +80,14 @@ Abstracts a 3D tile grid that can hold entities. All systems receive a `LevelInt
 type TileInterface interface { ... }
 ```
 
-Abstracts a single tile in the grid. Tiles must also satisfy `path.Pather` so they can be used directly with MLGE's A* pathfinder.
+Abstracts a single tile in the grid.
 
-#### Coordinate & Pathfinding
+#### Coordinate & Identity
 
 | Method | Signature | Description |
 |--------|-----------|-------------|
 | `Coords` | `() (x, y, z int)` | Returns the tile's grid coordinates |
-| `PathID` | `() int` | Unique integer ID used by the A* pathfinder |
-| `PathNeighborsAppend` | `(neighbors []path.Pather) []path.Pather` | Appends passable neighbors to the slice (zero-allocation) |
-| `PathNeighborCost` | `(to path.Pather) float64` | Movement cost to an adjacent tile |
-| `PathEstimatedCost` | `(to path.Pather) float64` | Heuristic cost estimate (squared Euclidean distance) |
+| `PathID` | `() int` | Flat tile index — used as the node ID for `path.Graph` |
 
 #### Tile Properties
 
@@ -176,32 +173,40 @@ type Tile struct {
     Variant    int  // Visual variant
     LightLevel int  // Cached lighting value
     Idx        int  // Flat index into Level.Data (derives X/Y/Z)
+    // width, height int — unexported; stamped at init for Coords() derivation
 }
 ```
 
-Coordinates are derived from the flat index via the active level's dimensions, avoiding per-tile X/Y/Z storage. The `Tile` struct implements `TileInterface` and `path.Pather`.
+Coordinates are derived from `Idx` and the level dimensions stamped on each tile at construction. No global state, no pointer back to the level — all fields are value types, keeping the struct GC-invisible. The `Tile` struct implements `TileInterface`.
 
 #### Methods
 
 | Method | Description |
 |--------|-------------|
-| `Coords() (x, y, z int)` | Derives coordinates from `Idx` and the active level dimensions |
+| `Coords() (x, y, z int)` | Derives coordinates from `Idx`, `width`, and `height` — O(1) arithmetic, no allocation |
 | `IsSolid() bool` | Looks up `TileDefinitions[t.Type].Solid` |
 | `IsWater() bool` | Looks up `TileDefinitions[t.Type].Water` |
 | `IsAir() bool` | Looks up `TileDefinitions[t.Type].Air` |
-| `PathID() int` | Returns `Idx` |
-| `PathNeighborsAppend(...)` | 6-directional (cardinal + Z up/down). Z neighbors require StairsUp/StairsDown. |
-| `PathNeighborCost(...)` | Delegates to `Level.PathCostFunc` if set, otherwise `DefaultPathCost` |
-| `PathEstimatedCost(...)` | Squared Euclidean distance heuristic |
+| `PathID() int` | Returns `Idx` — used as the node ID when calling `path.Graph` methods |
 
 #### DefaultPathCost
 
-The built-in path cost function used when `Level.PathCostFunc` is nil:
+`DefaultPathCost(from, to *Tile) float64` is the built-in cost function used when `Level.PathCostFunc` is nil:
 - Solid or water tiles: cost 5000 (impassable)
-- Z-level transitions without stairs: cost 1000
+- Z-level transitions without stairs: cost 5000
 - Otherwise: cost 0
 
-Games should set `Level.PathCostFunc` to add entity-blocking, door logic, faction checks, etc.
+Set `Level.PathCostFunc` to inject game-specific logic:
+
+```go
+level.PathCostFunc = func(from, to *rlworld.Tile) float64 {
+    toX, toY, toZ := to.Coords()
+    if level.GetSolidEntityAt(toX, toY, toZ) != nil {
+        return 5000
+    }
+    return rlworld.DefaultPathCost(from, to)
+}
+```
 
 ---
 
@@ -224,27 +229,31 @@ type Level struct {
 #### Construction
 
 ```go
+rlworld.SetTileDefinitions(myTileDefs) // once at startup
 level := rlworld.NewLevel(width, height, depth)
 ```
 
-`NewLevel` allocates the tile array, initializes all tiles to `"air"` in parallel across available CPUs, and sets this level as the **active level** (required for `Tile.Coords()` derivation).
+`NewLevel` allocates the tile array and initializes all tiles to `"air"` in parallel across available CPUs. It stamps the level dimensions directly on each tile so `Tile.Coords()` works without any global state. Multiple levels can exist simultaneously.
 
 #### Key Design Points
 
 - **Flat 3D array**: Tiles are stored in a single `[]Tile` slice indexed by `x + y*Width + z*Width*Height`. No pointer fields means the GC skips scanning the entire array.
 - **Spatial entity index**: An internal `map[int][]*ecs.Entity` maps flat tile indices to entity lists for O(1) lookups.
 - **Parallel init**: `InitTiles()` uses `runtime.NumCPU()-1` goroutines to initialize tiles.
-- **Active level pattern**: A package-level `activeLevel` pointer is used by `Tile.Coords()` and pathfinding methods. Only one level can be active at a time. Call `level.SetActive()` if you switch between levels.
+- **No global state**: Each level is self-contained. There is no `activeLevel` global and no `SetActive()` call.
+- **Implements `path.Graph`**: `Level` provides `PathNeighborIDs`, `PathCost`, and `PathEstimate` so it can be passed directly to `path.AStar.Path`. See [path](path.html) for usage.
 
 #### Additional Methods (beyond LevelInterface)
 
 | Method | Signature | Description |
 |--------|-----------|-------------|
-| `SetActive` | `()` | Makes this level the active level for Tile coordinate derivation |
 | `InitTiles` | `()` | Reinitializes all tiles to air (parallel) |
-| `GetTilePtr` | `(x, y, z int) *Tile` | Returns a direct `*Tile` pointer (nil if out of bounds) — use this when you need the concrete type |
+| `GetTilePtr` | `(x, y, z int) *Tile` | Returns a direct `*Tile` pointer (nil if out of bounds) — use when you need the concrete type |
 | `GetTilePtrIndex` | `(idx int) *Tile` | Returns a direct `*Tile` pointer by flat index |
 | `ResolveVariant` | `(t *Tile) TileVariant` | Returns the correct `TileVariant` for the tile based on its `AutoTile` mode and neighbors |
+| `PathNeighborIDs` | `(tileIdx int, buf []int) []int` | Implements `path.Graph` — appends walkable neighbor indices |
+| `PathCost` | `(fromIdx, toIdx int) float64` | Implements `path.Graph` — delegates to `PathCostFunc` or `DefaultPathCost` |
+| `PathEstimate` | `(fromIdx, toIdx int) float64` | Implements `path.Graph` — squared Euclidean distance heuristic |
 
 #### Embedding the Base Level
 

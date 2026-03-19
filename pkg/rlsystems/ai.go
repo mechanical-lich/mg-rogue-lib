@@ -7,7 +7,6 @@ import (
 	"github.com/mechanical-lich/ml-rogue-lib/pkg/rlentity"
 	"github.com/mechanical-lich/ml-rogue-lib/pkg/rlworld"
 	"github.com/mechanical-lich/mlge/ecs"
-	"github.com/mechanical-lich/mlge/path"
 	"github.com/mechanical-lich/mlge/utility"
 )
 
@@ -31,7 +30,7 @@ type AISystem struct {
 
 	// GetPath returns a path from fromTile to toTile, reusing the provided slice.
 	// If nil, HostileAI falls back to direct delta movement (no pathfinding).
-	GetPath func(level rlworld.LevelInterface, from, to rlworld.TileInterface, reuse []path.Pather) []path.Pather
+	GetPath func(level rlworld.LevelInterface, from, to rlworld.TileInterface, reuse []int) []int
 
 	// OnWander is called after a WanderAI move.
 	OnWander func(entity *ecs.Entity)
@@ -109,7 +108,7 @@ func (s *AISystem) UpdateEntity(levelInterface interface{}, entity *ecs.Entity) 
 				if from != nil && to != nil {
 					needNew := len(hc.Path) == 0
 					if !needNew {
-						last := hc.Path[len(hc.Path)-1].(rlworld.TileInterface)
+						last := level.GetTileIndex(hc.Path[len(hc.Path)-1])
 						lx, ly, _ := last.Coords()
 						needNew = lx != hc.TargetX || ly != hc.TargetY
 					}
@@ -120,13 +119,13 @@ func (s *AISystem) UpdateEntity(levelInterface interface{}, entity *ecs.Entity) 
 			}
 
 			if len(hc.Path) > 0 {
-				t := hc.Path[0].(rlworld.TileInterface)
+				t := level.GetTileIndex(hc.Path[0])
 				tx, ty, _ := t.Coords()
 				if pc.GetX() == tx && pc.GetY() == ty {
 					hc.Path = hc.Path[1:]
 				}
 				if len(hc.Path) > 0 {
-					t = hc.Path[0].(rlworld.TileInterface)
+					t = level.GetTileIndex(hc.Path[0])
 					tx, ty, _ = t.Coords()
 					if pc.GetX() < tx {
 						dx = 1

@@ -2,7 +2,6 @@ package rlcomponents
 
 import (
 	"github.com/mechanical-lich/mlge/ecs"
-	"github.com/mechanical-lich/mlge/path"
 )
 
 // MemoryFact stores a single remembered fact about another entity.
@@ -24,7 +23,7 @@ type AIMemoryComponent struct {
 	TargetX            int
 	TargetY            int
 	TargetZ            int
-	CurrentSteps       []path.Pather
+	CurrentSteps       []int // cached path as flat tile indices
 	FoodSearchCooldown int
 }
 

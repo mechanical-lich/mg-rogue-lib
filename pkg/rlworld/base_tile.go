@@ -1,23 +1,22 @@
 package rlworld
 
-import (
-	"github.com/mechanical-lich/mlge/path"
-)
-
-// Tile is a GC-friendly tile struct with no pointer fields.
-// Coordinates are derived from the flat index via the active Level.
+// Tile is a GC-friendly tile struct. It stores its flat index and the level
+// dimensions needed to derive coordinates — all plain integer fields, so the
+// GC never needs to scan a Tile for pointers.
 type Tile struct {
-	Type       int    // Index into TileDefinitions
-	Variant    int    // Visual variant
-	LightLevel int    // Cached lighting value
-	Idx        int    `json:"-"` // Flat index into Level.Data (derives X/Y/Z) — excluded from serialization
+	Type       int `json:"Type"`
+	Variant    int `json:"Variant"`
+	LightLevel int `json:"LightLevel"`
+	Idx        int `json:"-"` // flat index into Level.Data
+	width      int `json:"-"` // cached from the owning level
+	height     int `json:"-"` // cached from the owning level
 }
 
-// Coords derives X, Y, Z from the flat index and the active level dimensions.
+// Coords derives X, Y, Z from the flat index and the cached level dimensions.
 func (t *Tile) Coords() (x, y, z int) {
-	x = t.Idx % activeLevel.Width
-	y = (t.Idx / activeLevel.Width) % activeLevel.Height
-	z = t.Idx / (activeLevel.Width * activeLevel.Height)
+	x = t.Idx % t.width
+	y = (t.Idx / t.width) % t.height
+	z = t.Idx / (t.width * t.height)
 	return
 }
 
@@ -25,7 +24,10 @@ func (t *Tile) IsSolid() bool { return TileDefinitions[t.Type].Solid }
 func (t *Tile) IsWater() bool { return TileDefinitions[t.Type].Water }
 func (t *Tile) IsAir() bool   { return TileDefinitions[t.Type].Air }
 
-// pathOffsets is pre-allocated to avoid allocation in the hot path.
+// PathID returns the flat index as a unique node ID for pathfinding.
+func (t *Tile) PathID() int { return t.Idx }
+
+// pathOffsets lists the six cardinal directions (4 planar + 2 vertical).
 var pathOffsets = [6][3]int{
 	{-1, 0, 0}, // Left
 	{1, 0, 0},  // Right
@@ -35,59 +37,9 @@ var pathOffsets = [6][3]int{
 	{0, 0, 1},  // Z up
 }
 
-// PathID returns a unique integer ID for this tile (its flat index).
-func (t *Tile) PathID() int {
-	return t.Idx
-}
-
-// PathNeighborsAppend appends walkable neighbors to the provided slice (zero-allocation).
-// Vertical (Z) neighbors require StairsUp/StairsDown on the destination tile.
-func (t *Tile) PathNeighborsAppend(neighbors []path.Pather) []path.Pather {
-	x, y, z := t.Coords()
-	for i := range pathOffsets {
-		offset := &pathOffsets[i]
-		n := activeLevel.GetTilePtr(x+offset[0], y+offset[1], z+offset[2])
-		if n == nil {
-			continue
-		}
-		if offset[2] != 0 && !(TileDefinitions[n.Type].StairsUp || TileDefinitions[n.Type].StairsDown) {
-			continue
-		}
-		neighbors = append(neighbors, n)
-	}
-	return neighbors
-}
-
-// PathNeighborCost returns the movement cost to an adjacent tile.
-// If the Level has a custom PathCostFunc set, it is used; otherwise defaultPathCost applies.
-func (t *Tile) PathNeighborCost(to path.Pather) float64 {
-	toTile, ok := to.(*Tile)
-	if !ok || toTile == nil || t == nil {
-		return 500
-	}
-	if activeLevel.PathCostFunc != nil {
-		return activeLevel.PathCostFunc(t, toTile)
-	}
-	return DefaultPathCost(t, toTile)
-}
-
-// PathEstimatedCost returns a heuristic estimate (squared Euclidean distance).
-func (t *Tile) PathEstimatedCost(to path.Pather) float64 {
-	t2, ok := to.(*Tile)
-	if !ok || t2 == nil || t == nil {
-		return 1e18
-	}
-	x1, y1, z1 := t.Coords()
-	x2, y2, z2 := t2.Coords()
-	dx := x2 - x1
-	dy := y2 - y1
-	dz := z2 - z1
-	return float64(dx*dx + dy*dy + dz*dz)
-}
-
-// DefaultPathCost is the base path cost function. It rejects solid/water tiles
-// and enforces stairs for Z-level transitions. Games should provide their own
-// PathCostFunc on Level for entity-blocking, doors, factions, etc.
+// DefaultPathCost is the base path cost function used by Level.PathCost when
+// no custom PathCostFunc is set. It rejects solid/water tiles and enforces
+// stair tiles for Z-level transitions.
 func DefaultPathCost(from, to *Tile) float64 {
 	tileDef := TileDefinitions[to.Type]
 
@@ -110,4 +62,3 @@ func DefaultPathCost(from, to *Tile) float64 {
 
 	return 0.0
 }
-

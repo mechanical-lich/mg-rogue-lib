@@ -12,10 +12,6 @@ import (
 	"github.com/mechanical-lich/ml-rogue-lib/pkg/rlcomponents"
 )
 
-// activeLevel is the single active level. Tile stores no pointer back to Level
-// so the GC skips scanning the entire tile array.
-var activeLevel *Level
-
 // Level is a GC-optimized 3D tile container with spatial entity indexing.
 // Games can embed this struct and extend it with rendering, lighting overlays, etc.
 type Level struct {
@@ -42,7 +38,6 @@ type Level struct {
 var _ LevelInterface = (*Level)(nil)
 
 // NewLevel creates a Level with the given dimensions and initializes all tiles to "air".
-// It also sets this level as the active level for Tile coordinate derivation.
 func NewLevel(width, height, depth int) *Level {
 	level := &Level{
 		Width: width, Height: height, Depth: depth,
@@ -50,14 +45,8 @@ func NewLevel(width, height, depth int) *Level {
 		Data:      make([]Tile, width*height*depth),
 		entityPos: make(map[int][]*ecs.Entity, 2048),
 	}
-	activeLevel = level
 	level.InitTiles()
 	return level
-}
-
-// SetActive makes this level the active level for Tile coordinate derivation.
-func (level *Level) SetActive() {
-	activeLevel = level
 }
 
 // InitTiles initializes all tiles to air in parallel across available CPUs.
@@ -82,8 +71,10 @@ func (level *Level) InitTiles() {
 			defer wg.Done()
 			for i := start; i < end; i++ {
 				level.Data[i] = Tile{
-					Type: TileNameToIndex["air"],
-					Idx:  i,
+					Type:   TileNameToIndex["air"],
+					Idx:    i,
+					width:  level.Width,
+					height: level.Height,
 				}
 			}
 		}(start, end)
@@ -229,6 +220,51 @@ func (level *Level) SetTileType(x, y int, t string) error {
 	tile.Type = TileNameToIndex[t]
 	level.InvalidateSunColumn(x, y)
 	return nil
+}
+
+// ─── Pathfinding (implements path.Graph) ─────────────────────────────
+
+// PathNeighborIDs appends the flat tile indices of walkable neighbors of tileIdx
+// to buf and returns it. Direct array access — no map lookup, no allocation.
+func (level *Level) PathNeighborIDs(tileIdx int, buf []int) []int {
+	t := &level.Data[tileIdx]
+	x, y, z := t.Coords()
+	for i := range pathOffsets {
+		offset := &pathOffsets[i]
+		n := level.GetTilePtr(x+offset[0], y+offset[1], z+offset[2])
+		if n == nil {
+			continue
+		}
+		if offset[2] != 0 && !(TileDefinitions[n.Type].StairsUp || TileDefinitions[n.Type].StairsDown) {
+			continue
+		}
+		buf = append(buf, n.Idx)
+	}
+	return buf
+}
+
+// PathCost returns the movement cost between two adjacent tile indices.
+// Uses the level's PathCostFunc if set, otherwise DefaultPathCost.
+func (level *Level) PathCost(fromIdx, toIdx int) float64 {
+	from := &level.Data[fromIdx]
+	to := &level.Data[toIdx]
+	if level.PathCostFunc != nil {
+		return level.PathCostFunc(from, to)
+	}
+	return DefaultPathCost(from, to)
+}
+
+// PathEstimate returns the heuristic estimate (squared Euclidean distance)
+// between two tile indices.
+func (level *Level) PathEstimate(fromIdx, toIdx int) float64 {
+	t1 := &level.Data[fromIdx]
+	t2 := &level.Data[toIdx]
+	x1, y1, z1 := t1.Coords()
+	x2, y2, z2 := t2.Coords()
+	dx := x2 - x1
+	dy := y2 - y1
+	dz := z2 - z1
+	return float64(dx*dx + dy*dy + dz*dz)
 }
 
 // ─── Time & lighting ─────────────────────────────────────────────────
