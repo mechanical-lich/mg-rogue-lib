@@ -217,6 +217,7 @@ A GC-optimized 3D tile container with spatial entity indexing. Implements `Level
 ```go
 type Level struct {
     Data           []Tile
+    Seen           []bool // parallel to Data — fog of war explored state
     Entities       []*ecs.Entity
     StaticEntities []*ecs.Entity
     Width, Height, Depth int
@@ -254,6 +255,9 @@ level := rlworld.NewLevel(width, height, depth)
 | `PathNeighborIDs` | `(tileIdx int, buf []int) []int` | Implements `path.Graph` — appends walkable neighbor indices |
 | `PathCost` | `(fromIdx, toIdx int) float64` | Implements `path.Graph` — delegates to `PathCostFunc` or `DefaultPathCost` |
 | `PathEstimate` | `(fromIdx, toIdx int) float64` | Implements `path.Graph` — squared Euclidean distance heuristic |
+| `GetSeen` | `(x, y, z int) bool` | Reports whether the tile has ever been visible — used for fog of war |
+| `SetSeen` | `(x, y, z int, val bool)` | Marks a tile as seen or unseen |
+| `ClearSeen` | `()` | Resets all explored state (e.g. on level load) |
 
 #### Embedding the Base Level
 

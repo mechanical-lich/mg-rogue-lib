@@ -22,6 +22,7 @@ Rather than prescribing a specific game loop, the library is intentionally open:
 - **AI Behaviours** — Wander, Hostile (pursue + attack), and Defensive AIs with pluggable pathfinding
 - **Status Conditions** — Poisoned, Burning, Alerted, Regeneration — each decaying over turns
 - **Door System** — Open/close state synced to sprite coordinates via a minimal interface
+- **Fog of War** — Bresenham line-of-sight, field-of-view radius sweep, and per-tile explored state built into the base level
 - **Level Generation** — Perlin-noise overworld and island generators, room carvers, and entity cluster spawners
 - **World Interfaces & Base Types** — `LevelInterface` and `TileInterface` contracts with ready-to-use GC-optimized `Level`, `Tile`, and `TileDefinition` base implementations
 - **Entity Helpers** — Stateless movement, facing, swapping, eating, and death detection in `rlentity`
@@ -33,8 +34,9 @@ Rather than prescribing a specific game loop, the library is intentionally open:
 | Package | Description |
 |---------|-------------|
 | [`path`](path.html) | Graph-centric A\* pathfinding with a GC-invisible hot path |
-| [`rlcomponents`](rlcomponents.html) | ECS component types and structs |
 | [`rlworld`](rlworld.html) | `LevelInterface` / `TileInterface` contracts + GC-optimized base `Level`, `Tile`, and `TileDefinition` types |
+| [`rlfov`](rlfov.html) | Line-of-sight (Bresenham) and field-of-view with built-in fog-of-war explored state |
+| [`rlcomponents`](rlcomponents.html) | ECS component types and structs |
 | [`rlai`](rlai.html) | AI navigation helpers (target tracking, range checks, path following) |
 | [`rlcombat`](rlcombat.html) | D&D-style melee combat pipeline |
 | [`rlentity`](rlentity.html) | Stateless entity helpers (move, face, eat, swap, death detection) |

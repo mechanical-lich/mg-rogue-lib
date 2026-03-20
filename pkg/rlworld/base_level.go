@@ -16,6 +16,7 @@ import (
 // Games can embed this struct and extend it with rendering, lighting overlays, etc.
 type Level struct {
 	Data           []Tile
+	Seen           []bool // parallel to Data — fog of war explored state (1 byte per tile)
 	Entities       []*ecs.Entity
 	StaticEntities []*ecs.Entity
 	entityPos      map[int][]*ecs.Entity
@@ -39,10 +40,12 @@ var _ LevelInterface = (*Level)(nil)
 
 // NewLevel creates a Level with the given dimensions and initializes all tiles to "air".
 func NewLevel(width, height, depth int) *Level {
+	total := width * height * depth
 	level := &Level{
 		Width: width, Height: height, Depth: depth,
 		Hour:      10,
-		Data:      make([]Tile, width*height*depth),
+		Data:      make([]Tile, total),
+		Seen:      make([]bool, total),
 		entityPos: make(map[int][]*ecs.Entity, 2048),
 	}
 	level.InitTiles()
@@ -160,6 +163,31 @@ func (level *Level) ResolveVariant(t *Tile) TileVariant {
 
 func (level *Level) index(x, y, z int) int {
 	return x + y*level.Width + z*level.Width*level.Height
+}
+
+// ─── Fog of war ──────────────────────────────────────────────────────
+
+// GetSeen reports whether the tile at (x,y,z) has ever been seen.
+func (level *Level) GetSeen(x, y, z int) bool {
+	if !level.InBounds(x, y, z) {
+		return false
+	}
+	return level.Seen[level.index(x, y, z)]
+}
+
+// SetSeen marks the tile at (x,y,z) as seen or unseen.
+func (level *Level) SetSeen(x, y, z int, val bool) {
+	if !level.InBounds(x, y, z) {
+		return
+	}
+	level.Seen[level.index(x, y, z)] = val
+}
+
+// ClearSeen resets all explored state (e.g. when loading a new level).
+func (level *Level) ClearSeen() {
+	for i := range level.Seen {
+		level.Seen[i] = false
+	}
 }
 
 // ─── Tile access ─────────────────────────────────────────────────────
