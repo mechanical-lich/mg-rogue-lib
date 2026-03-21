@@ -1,9 +1,13 @@
 package rlentity
 
 import (
+	"math/rand"
+
 	"github.com/mechanical-lich/ml-rogue-lib/pkg/rlcomponents"
+	"github.com/mechanical-lich/ml-rogue-lib/pkg/rlfov"
 	"github.com/mechanical-lich/ml-rogue-lib/pkg/rlworld"
 	"github.com/mechanical-lich/mlge/ecs"
+	"github.com/mechanical-lich/mlge/message"
 )
 
 // GetName returns the entity's Description name, or "Unknown".
@@ -131,4 +135,71 @@ func HandleMovement(level rlworld.LevelInterface, entity *ecs.Entity, deltaX, de
 	}
 	Move(entity, level, deltaX, deltaY, deltaZ)
 	Face(entity, deltaX, deltaY)
+}
+
+// CheckExcuseMe posts a random ExcuseMeAnnouncement from bumped when bumper
+// collides with it and they swap positions. Call this after a friendly swap.
+func CheckExcuseMe(bumped *ecs.Entity) {
+	if bumped == nil || !bumped.HasComponent(rlcomponents.Description) {
+		return
+	}
+	dc := bumped.GetComponent(rlcomponents.Description).(*rlcomponents.DescriptionComponent)
+	if len(dc.ExcuseMeAnnouncements) == 0 {
+		return
+	}
+	msg := dc.ExcuseMeAnnouncements[rand.Intn(len(dc.ExcuseMeAnnouncements))]
+	message.PostTaggedMessage("excuseme", dc.Name, msg)
+}
+
+// CheckPassOver looks for entities at (x, y, z) that carry a PassOverDescription
+// and posts a random one as a located tagged message. Only the first matching
+// entity fires — call this after a successful Move to avoid message spam.
+func CheckPassOver(mover *ecs.Entity, level rlworld.LevelInterface, x, y, z int) {
+	var buf []*ecs.Entity
+	level.GetEntitiesAt(x, y, z, &buf)
+	for _, e := range buf {
+		if e == mover {
+			continue
+		}
+		if !e.HasComponent(rlcomponents.Description) {
+			continue
+		}
+		dc := e.GetComponent(rlcomponents.Description).(*rlcomponents.DescriptionComponent)
+		if len(dc.PassOverDescription) == 0 {
+			continue
+		}
+		msg := dc.PassOverDescription[rand.Intn(len(dc.PassOverDescription))]
+		message.PostLocatedTaggedMessage("passover", dc.Name, msg, x, y, z)
+		return
+	}
+}
+
+// CheckDeathAnnouncement posts a random DeathAnnouncement from the dying entity
+// if watcher has line-of-sight to it. Call this before the entity is removed.
+func CheckDeathAnnouncement(watcher *ecs.Entity, dying *ecs.Entity, level *rlworld.Level) {
+	if watcher == nil || watcher == dying {
+		return
+	}
+	if !dying.HasComponent(rlcomponents.Description) {
+		return
+	}
+	dc := dying.GetComponent(rlcomponents.Description).(*rlcomponents.DescriptionComponent)
+	var msg string
+	if len(dc.DeathAnnouncements) == 0 {
+		msg = dc.Name + " has died."
+	} else {
+		msg = dc.DeathAnnouncements[rand.Intn(len(dc.DeathAnnouncements))]
+	}
+	if !dying.HasComponent(rlcomponents.Position) || !watcher.HasComponent(rlcomponents.Position) {
+		return
+	}
+	dp := dying.GetComponent(rlcomponents.Position).(*rlcomponents.PositionComponent)
+	wp := watcher.GetComponent(rlcomponents.Position).(*rlcomponents.PositionComponent)
+	if dp.GetZ() != wp.GetZ() {
+		return
+	}
+	if !rlfov.Los(level, wp.GetX(), wp.GetY(), dp.GetX(), dp.GetY(), dp.GetZ()) {
+		return
+	}
+	message.PostLocatedTaggedMessage("death", dc.Name, msg, dp.GetX(), dp.GetY(), dp.GetZ())
 }
