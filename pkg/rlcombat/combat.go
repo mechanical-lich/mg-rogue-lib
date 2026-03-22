@@ -153,9 +153,10 @@ func InflictDamage(attacker, defender *ecs.Entity) {
 
 // Hit performs a full D&D-style melee attack from entity to entityHit.
 // If swap is true and the two entities are friendly, they swap positions instead.
-func Hit(level rlworld.LevelInterface, entity, entityHit *ecs.Entity, swap bool) {
+// Returns true if the attack was executed (even if it missed), false if it was invalid.
+func Hit(level rlworld.LevelInterface, entity, entityHit *ecs.Entity, swap bool) bool {
 	if entity == nil || entityHit == nil || entity == entityHit {
-		return
+		return false
 	}
 
 	if IsFriendly(entity, entityHit) {
@@ -166,11 +167,11 @@ func Hit(level rlworld.LevelInterface, entity, entityHit *ecs.Entity, swap bool)
 			level.PlaceEntity(hitPC.GetX(), hitPC.GetY(), hitPC.GetZ(), entity)
 			level.PlaceEntity(oldX, oldY, oldZ, entityHit)
 		}
-		return
+		return false
 	}
 
 	if !entityHit.HasComponent(rlcomponents.Health) || !entityHit.HasComponent(rlcomponents.Stats) || !entity.HasComponent(rlcomponents.Stats) {
-		return
+		return false
 	}
 
 	sc := entity.GetComponent(rlcomponents.Stats).(*rlcomponents.StatsComponent)
@@ -189,7 +190,7 @@ func Hit(level rlworld.LevelInterface, entity, entityHit *ecs.Entity, swap bool)
 	roll, err := dice.ParseDiceRequest("1d20")
 	if err != nil {
 		log.Print("rlcombat: error rolling d20: ", err)
-		return
+		return false
 	}
 
 	pc := entity.GetComponent(rlcomponents.Position).(*rlcomponents.PositionComponent)
@@ -205,6 +206,7 @@ func Hit(level rlworld.LevelInterface, entity, entityHit *ecs.Entity, swap bool)
 		}
 	}
 	TriggerDefenses(entityHit, pc.GetX(), pc.GetY())
+	return true
 }
 
 func hasResistance(defender *ecs.Entity, damageType string) bool {
