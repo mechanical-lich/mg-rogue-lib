@@ -32,6 +32,8 @@ const (
 	Armor           ecs.ComponentType = "Armor"
 	Weapon          ecs.ComponentType = "Weapon"
 	AsciiAppearance ecs.ComponentType = "AsciiAppearance"
+	Interaction     ecs.ComponentType = "Interaction"
+	Key             ecs.ComponentType = "Key"
 )
 
 func init() {

@@ -2,11 +2,13 @@ package rlentity
 
 import (
 	"math/rand"
+	"slices"
 
 	"github.com/mechanical-lich/ml-rogue-lib/pkg/rlcomponents"
 	"github.com/mechanical-lich/ml-rogue-lib/pkg/rlfov"
 	"github.com/mechanical-lich/ml-rogue-lib/pkg/rlworld"
 	"github.com/mechanical-lich/mlge/ecs"
+	"github.com/mechanical-lich/mlge/event"
 	"github.com/mechanical-lich/mlge/message"
 )
 
@@ -24,6 +26,26 @@ func CanPassThroughDoor(entity *ecs.Entity, door *rlcomponents.DoorComponent) bo
 	if door.Open {
 		return true
 	}
+
+	if door.Locked {
+		if door.KeyId != "" {
+			if entity.HasComponent(rlcomponents.Inventory) {
+				inv := entity.GetComponent(rlcomponents.Inventory).(*rlcomponents.InventoryComponent)
+				for _, item := range inv.Bag {
+					if item.HasComponent(rlcomponents.Key) {
+						key := item.GetComponent(rlcomponents.Key).(*rlcomponents.KeyComponent)
+						if key.KeyID == door.KeyId {
+							door.Locked = false
+							door.Open = true
+							return true
+						}
+					}
+				}
+			}
+		}
+		return false
+	}
+
 	if entity.HasComponent(rlcomponents.Description) {
 		dc := entity.GetComponent(rlcomponents.Description).(*rlcomponents.DescriptionComponent)
 		if dc.Faction == door.OwnedBy && door.OwnedBy != "" {
@@ -149,6 +171,66 @@ func CheckExcuseMe(bumped *ecs.Entity) {
 	}
 	msg := dc.ExcuseMeAnnouncements[rand.Intn(len(dc.ExcuseMeAnnouncements))]
 	message.PostTaggedMessage("excuseme", dc.Name, msg)
+}
+
+// CheckInteraction fires all triggers on target's InteractionComponent if it
+// has one and has not been used (or is repeatable). Posts one InteractionEvent
+// per trigger to mlge's queued event manager. Returns true if it fired.
+func CheckInteraction(actor, target *ecs.Entity) bool {
+	if target == nil || !target.HasComponent(rlcomponents.Interaction) {
+		return false
+	}
+	ic := target.GetComponent(rlcomponents.Interaction).(*rlcomponents.InteractionComponent)
+	if ic.Used && !ic.Repeatable {
+		return false
+	}
+	if len(ic.Prompt) > 0 {
+		message.PostTaggedMessage("interaction", GetName(target), ic.Prompt)
+	}
+	for _, trigger := range ic.Triggers {
+		event.GetQueuedInstance().QueueEvent(rlcomponents.InteractionEvent{
+			Actor:   actor,
+			Target:  target,
+			Trigger: trigger,
+		})
+	}
+	if !ic.Repeatable {
+		ic.Used = true
+	}
+	return true
+}
+
+// FindByID searches level entities for the first one whose DescriptionComponent
+// ID matches the given string. Returns nil if not found.
+func FindByID(level rlworld.LevelInterface, id string) *ecs.Entity {
+	if id == "" {
+		return nil
+	}
+	for _, e := range level.GetEntities() {
+		if e == nil || !e.HasComponent(rlcomponents.Description) {
+			continue
+		}
+		dc := e.GetComponent(rlcomponents.Description).(*rlcomponents.DescriptionComponent)
+		if dc.ID == id {
+			return e
+		}
+	}
+	return nil
+}
+
+// FindByTag returns all entities whose DescriptionComponent Tags contain tag.
+func FindByTag(level rlworld.LevelInterface, tag string) []*ecs.Entity {
+	var results []*ecs.Entity
+	for _, e := range level.GetEntities() {
+		if e == nil || !e.HasComponent(rlcomponents.Description) {
+			continue
+		}
+		dc := e.GetComponent(rlcomponents.Description).(*rlcomponents.DescriptionComponent)
+		if slices.Contains(dc.Tags, tag) {
+			results = append(results, e)
+		}
+	}
+	return results
 }
 
 // CheckPassOver looks for entities at (x, y, z) that carry a PassOverDescription

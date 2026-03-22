@@ -6,6 +6,7 @@ import "github.com/mechanical-lich/mlge/ecs"
 type DoorComponent struct {
 	Open          bool
 	Locked        bool
+	KeyId         string // if set, the ID of the key that can unlock this door
 	OpenedSpriteX int
 	OpenedSpriteY int
 	ClosedSpriteX int
