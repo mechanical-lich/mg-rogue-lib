@@ -7,11 +7,16 @@ import (
 	"github.com/mechanical-lich/mlge/utility"
 )
 
+type DropItem struct {
+	Chance    int    // Chance to drop (0-100)
+	Quantity  int    // Quantity to drop if successful
+	Blueprint string // Blueprint name of the item to drop
+}
+
 type DropsComponent struct {
-	Items         map[string]int // item name to quantity
-	DropChances   map[string]int // item name to drop chance (0-100)
-	NumRolls      int            // number of times to roll for drops
-	AlwaysDropAll bool           // if true, all items with be dropped
+	Items         []DropItem // List of potential drops with their chances
+	NumRolls      int        // number of times to roll for drops
+	AlwaysDropAll bool       // if true, all items with be dropped
 }
 
 func (c *DropsComponent) GetType() ecs.ComponentType {
@@ -19,21 +24,24 @@ func (c *DropsComponent) GetType() ecs.ComponentType {
 }
 
 func (c *DropsComponent) GetDrops() map[string]int {
+	dropped := make(map[string]int)
 	if c.AlwaysDropAll {
-		return c.Items
+		for _, item := range c.Items {
+			dropped[item.Blueprint] = item.Quantity
+		}
+		return dropped
 	}
 
 	fmt.Println("Calculating drops for", c.Items)
 	// TODO - Look more into this, but fine for POC.
-	dropped := make(map[string]int)
-	for item, quantity := range c.Items {
-		chance := c.DropChances[item]
+	for _, item := range c.Items {
+		chance := item.Chance
 		for i := 0; i < c.NumRolls; i++ {
 			if utility.GetRandom(0, 100) < chance {
-				if quantity <= 0 {
-					quantity = 1
+				if item.Quantity <= 0 {
+					item.Quantity = 1
 				}
-				dropped[item] += quantity
+				dropped[item.Blueprint] += item.Quantity
 			}
 		}
 	}
