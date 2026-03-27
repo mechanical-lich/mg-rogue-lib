@@ -3,12 +3,13 @@ package rlfov
 import (
 	"math"
 
+	"github.com/mechanical-lich/ml-rogue-lib/pkg/rlcomponents"
 	"github.com/mechanical-lich/ml-rogue-lib/pkg/rlworld"
 	"github.com/mechanical-lich/mlge/utility"
 )
 
 // Los reports whether (tX, tY) is visible from (pX, pY) on Z layer z.
-// Blocked by solid tiles and door tiles. Uses Bresenham's line algorithm.
+// Blocked by solid tiles, door tiles, and closed door entities. Uses Bresenham's line algorithm.
 func Los(level *rlworld.Level, pX, pY, tX, tY, z int) bool {
 	deltaX := pX - tX
 	deltaY := pY - tY
@@ -38,6 +39,9 @@ func Los(level *rlworld.Level, pX, pY, tX, tY, z int) bool {
 			if rlworld.TileDefinitions[tile.Type].Door {
 				return false
 			}
+			if blocksLos(level, tX, tY, z) {
+				return false
+			}
 		}
 	}
 
@@ -59,7 +63,23 @@ func Los(level *rlworld.Level, pX, pY, tX, tY, z int) bool {
 		if rlworld.TileDefinitions[tile.Type].Door {
 			return false
 		}
+		if blocksLos(level, tX, tY, z) {
+			return false
+		}
 	}
+}
+
+// blocksLos returns true if a solid entity at (x,y,z) blocks line of sight.
+// A closed door blocks LOS; an open door does not.
+func blocksLos(level *rlworld.Level, x, y, z int) bool {
+	e := level.GetSolidEntityAt(x, y, z)
+	if e == nil {
+		return false
+	}
+	if e.HasComponent(rlcomponents.Door) {
+		return !e.GetComponent(rlcomponents.Door).(*rlcomponents.DoorComponent).Open
+	}
+	return true
 }
 
 // UpdateFieldOfView marks all tiles within radius of (x,y,z) as seen
