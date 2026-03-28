@@ -251,7 +251,7 @@ func Hit(level rlworld.LevelInterface, entity, entityHit *ecs.Entity, swap bool)
 		}
 		rlcombat.ApplyStatusEffects(entity, entityHit)
 	} else {
-		atkName, defName := entityNames(entity, entityHit)
+		atkName, defName := getEntityName(entity), getEntityName(entityHit)
 		if atkName != "" {
 			message.PostLocatedTaggedMessage("combat", atkName, fmt.Sprintf("missed %s", defName), pc.GetX(), pc.GetY(), pc.GetZ())
 		}
@@ -267,43 +267,96 @@ func Hit(level rlworld.LevelInterface, entity, entityHit *ecs.Entity, swap bool)
 	return true
 }
 
-// entityNames returns the Description names for attacker and defender.
-// Returns ("", "") if either entity lacks a DescriptionComponent.
-func entityNames(attacker, defender *ecs.Entity) (string, string) {
-	if !attacker.HasComponent(rlcomponents.Description) || !defender.HasComponent(rlcomponents.Description) {
-		return "", ""
+func SavingThrow(entity *ecs.Entity, saveType string, dc int, damageType string, damageDice string) bool {
+	if !entity.HasComponent(rlcomponents.Stats) {
+		return false
 	}
-	a := attacker.GetComponent(rlcomponents.Description).(*rlcomponents.DescriptionComponent).Name
-	d := defender.GetComponent(rlcomponents.Description).(*rlcomponents.DescriptionComponent).Name
-	return a, d
+
+	sc := entity.GetComponent(rlcomponents.Stats).(*rlcomponents.StatsComponent)
+	var mod int
+	switch saveType {
+	case "str":
+		mod = rlcombat.GetModifier(sc.Str)
+	case "dex":
+		mod = rlcombat.GetModifier(sc.Dex)
+	case "int":
+		mod = rlcombat.GetModifier(sc.Int)
+	case "wis":
+		mod = rlcombat.GetModifier(sc.Wis)
+	default:
+		mod = rlcombat.GetModifier(sc.Dex)
+	}
+
+	roll, err := dice.ParseDiceRequest("1d20")
+	if err != nil {
+		log.Print("rlcombat/v2: error rolling d20: ", err)
+		return false
+	}
+
+	success := roll.Result+mod >= dc
+
+	if !success {
+		damage, _ := rollDamage(entity, entity, false, "")
+		if entity.HasComponent(rlcomponents.Body) {
+			bc := entity.GetComponent(rlcomponents.Body).(*rlcomponents.BodyComponent)
+			partName, part := randomBodyPart(bc)
+			pc := entity.GetComponent(rlcomponents.Position).(*rlcomponents.PositionComponent)
+
+			if part != nil {
+				damage, err := dice.Roll(damageDice)
+				if err != nil {
+					log.Print("rlcombat/v2: error rolling damage dice: ", err)
+					return false
+				}
+
+				// Apply resistances/weaknesses to hit part.
+				if partHasResistance(entity, part.Name, damageType) {
+					damage /= 2
+				}
+				if rlcombat.HasWeakness(entity, damageType) {
+					damage *= 2
+				}
+				if damage <= 0 {
+					damage = 1
+				}
+
+				broken, amputated, kills := applyBodyPartDamage(bc, partName, damage)
+				//postHitMessage(entity, entityHit, partName, damage, damageType, crit, broken, amputated, pc)
+				postSaveFailMessage(entity, partName, damage, damageType, broken, amputated, pc)
+				if kills {
+					if entity.HasComponent(rlcomponents.Health) {
+						entity.GetComponent(rlcomponents.Health).(*rlcomponents.HealthComponent).Health = 0
+					}
+					entity.AddComponent(&rlcomponents.DeadComponent{})
+				}
+			} else {
+				// All parts are amputated — entity cannot survive.
+				entity.AddComponent(&rlcomponents.DeadComponent{})
+			}
+		} else {
+			hc := entity.GetComponent(rlcomponents.Health).(*rlcomponents.HealthComponent)
+			hc.Health -= damage
+			pc := entity.GetComponent(rlcomponents.Position).(*rlcomponents.PositionComponent)
+			postSaveFailMessage(entity, "", damage, damageType, false, false, pc)
+			if hc.Health <= 0 {
+				hc.Health = 0
+				entity.AddComponent(&rlcomponents.DeadComponent{})
+			}
+		}
+
+	} else {
+		pc := entity.GetComponent(rlcomponents.Position).(*rlcomponents.PositionComponent)
+		postSaveSuccessMessage(entity, "", damageType, pc)
+	}
+
+	return success
 }
 
-func postHitMessage(entity, entityHit *ecs.Entity, partName string, damage int, damageType string, crit, broken, amputated bool, pc *rlcomponents.PositionComponent) {
-	atkName, defName := entityNames(entity, entityHit)
-
-	if atkName != "" {
-		verb := "hit"
-		if crit {
-			verb = "critically hit"
-		}
-		msg := fmt.Sprintf("%s %s's %s for %d (%s)", verb, defName, partName, damage, damageType)
-		if amputated {
-			msg += fmt.Sprintf(" — %s's %s was amputated!", defName, partName)
-		} else if broken {
-			msg += fmt.Sprintf(" — %s's %s was broken!", defName, partName)
-		}
-		message.PostLocatedTaggedMessage("combat", atkName, msg, pc.GetX(), pc.GetY(), pc.GetZ())
+// getEntityNames returns the Description names for attacker and defender.
+// Returns ("", "") if either entity lacks a DescriptionComponent.
+func getEntityName(entity *ecs.Entity) string {
+	if !entity.HasComponent(rlcomponents.Description) {
+		return ""
 	}
-
-	event.GetQueuedInstance().QueueEvent(CombatEvent{
-		X: pc.GetX(), Y: pc.GetY(), Z: pc.GetZ(),
-		AttackerName: atkName,
-		DefenderName: defName,
-		Damage:       damage,
-		DamageType:   damageType,
-		BodyPart:     partName,
-		Crit:         crit,
-		Broken:       broken,
-		Amputated:    amputated,
-	})
+	return entity.GetComponent(rlcomponents.Description).(*rlcomponents.DescriptionComponent).Name
 }
