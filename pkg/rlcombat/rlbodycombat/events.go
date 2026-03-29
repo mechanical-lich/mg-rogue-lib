@@ -1,15 +1,22 @@
 package rlbodycombat
 
-import "github.com/mechanical-lich/mlge/event"
+import (
+	"github.com/mechanical-lich/mlge/ecs"
+	"github.com/mechanical-lich/mlge/event"
+)
 
 const CombatEventType event.EventType = "CombatEvent"
 
 // CombatEvent is posted whenever an attack resolves in v2 combat.
 // GUIs can listen for this event to display visual effects (floating damage
 // numbers, hit animations, etc.) near the world location of the attack.
+// For saving throws, Attacker is nil.
 type CombatEvent struct {
-	// World position of the attacker.
+	// World position of the attacker (or defender for saving throws).
 	X, Y, Z int
+
+	Attacker *ecs.Entity // nil for saving throws
+	Defender *ecs.Entity
 
 	AttackerName string
 	DefenderName string
@@ -26,6 +33,8 @@ type CombatEvent struct {
 	Crit      bool
 	Broken    bool
 	Amputated bool
+	SaveFail  bool
+	SavePass  bool
 }
 
 func (e CombatEvent) GetType() event.EventType {

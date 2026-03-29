@@ -9,7 +9,6 @@ import (
 	"github.com/mechanical-lich/ml-rogue-lib/pkg/rlworld"
 	"github.com/mechanical-lich/mlge/ecs"
 	"github.com/mechanical-lich/mlge/event"
-	"github.com/mechanical-lich/mlge/message"
 )
 
 // GetName returns the entity's Description name, or "Unknown".
@@ -239,9 +238,9 @@ func HandleMovement(level rlworld.LevelInterface, entity *ecs.Entity, deltaX, de
 	Face(entity, deltaX, deltaY)
 }
 
-// CheckExcuseMe posts a random ExcuseMeAnnouncement from bumped when bumper
-// collides with it and they swap positions. Call this after a friendly swap.
-func CheckExcuseMe(bumped *ecs.Entity) {
+// CheckExcuseMe queues an ExcuseMeEvent when mover bumps bumped during a
+// friendly swap. Call this after the swap resolves.
+func CheckExcuseMe(mover, bumped *ecs.Entity) {
 	if bumped == nil || !bumped.HasComponent(rlcomponents.Description) {
 		return
 	}
@@ -250,7 +249,11 @@ func CheckExcuseMe(bumped *ecs.Entity) {
 		return
 	}
 	msg := dc.ExcuseMeAnnouncements[rand.Intn(len(dc.ExcuseMeAnnouncements))]
-	message.PostTaggedMessage("excuseme", dc.Name, msg)
+	event.GetQueuedInstance().QueueEvent(rlcomponents.ExcuseMeEvent{
+		Mover:   mover,
+		Bumped:  bumped,
+		Message: msg,
+	})
 }
 
 // CheckInteraction fires all triggers on target's InteractionComponent if it
@@ -265,7 +268,11 @@ func CheckInteraction(actor, target *ecs.Entity) bool {
 		return false
 	}
 	if len(ic.Prompt) > 0 {
-		message.PostTaggedMessage("interaction", GetName(target), ic.Prompt)
+		event.GetQueuedInstance().QueueEvent(rlcomponents.InteractionEvent{
+			Actor:  actor,
+			Target: target,
+			Prompt: ic.Prompt,
+		})
 	}
 	for _, trigger := range ic.Triggers {
 		event.GetQueuedInstance().QueueEvent(rlcomponents.InteractionEvent{
@@ -330,7 +337,14 @@ func CheckPassOver(mover *ecs.Entity, level rlworld.LevelInterface, x, y, z int)
 			dc := e.GetComponent(rlcomponents.Description).(*rlcomponents.DescriptionComponent)
 			if len(dc.PassOverDescription) > 0 {
 				msg := dc.PassOverDescription[rand.Intn(len(dc.PassOverDescription))]
-				message.PostLocatedTaggedMessage("passover", dc.Name, msg, x, y, z)
+				event.GetQueuedInstance().QueueEvent(rlcomponents.PassoverEvent{
+					Mover:     mover,
+					SteppedOn: e,
+					Message:   msg,
+					X:         x,
+					Y:         y,
+					Z:         z,
+				})
 				passOverPosted = true
 			}
 		}
@@ -364,5 +378,12 @@ func CheckDeathAnnouncement(watcher *ecs.Entity, dying *ecs.Entity, level *rlwor
 	if !rlfov.Los(level, wp.GetX(), wp.GetY(), dp.GetX(), dp.GetY(), dp.GetZ()) {
 		return
 	}
-	message.PostLocatedTaggedMessage("death", dc.Name, msg, dp.GetX(), dp.GetY(), dp.GetZ())
+	event.GetQueuedInstance().QueueEvent(rlcomponents.DeathEvent{
+		Watcher: watcher,
+		Dying:   dying,
+		Message: msg,
+		X:       dp.GetX(),
+		Y:       dp.GetY(),
+		Z:       dp.GetZ(),
+	})
 }
