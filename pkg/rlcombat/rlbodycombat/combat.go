@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"slices"
 	"strings"
 
 	"github.com/mechanical-lich/ml-rogue-lib/pkg/rlcombat"
@@ -115,8 +116,14 @@ func SavingThrow(entity *ecs.Entity, saveType string, dc int, damageType string,
 	}
 
 	sc := entity.GetComponent(rlcomponents.Stats).(*rlcomponents.StatsComponent)
+
+	effectiveSave := saveType
+	if effectiveSave == "" {
+		effectiveSave = "dex"
+	}
+
 	var mod int
-	switch saveType {
+	switch effectiveSave {
 	case "str":
 		mod = rlcombat.GetModifier(sc.Str)
 	case "dex":
@@ -134,8 +141,16 @@ func SavingThrow(entity *ecs.Entity, saveType string, dc int, damageType string,
 		log.Print("rlcombat/v2: error rolling d20: ", err)
 		return false
 	}
+	rollResult := roll.Result
+	// Advantage: roll twice and take the best.
+	if slices.Contains(sc.Advantages, effectiveSave) {
+		roll2, err2 := dice.ParseDiceRequest("1d20")
+		if err2 == nil && roll2.Result > rollResult {
+			rollResult = roll2.Result
+		}
+	}
 
-	success := roll.Result+mod >= dc
+	success := rollResult+mod >= dc
 
 	if !success {
 		damage, _ := rollDamage(entity, entity, false, "")

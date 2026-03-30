@@ -38,7 +38,7 @@ func getAttackStats(attacker *ecs.Entity) (string, string, int) {
 	return rlcombat.GetAttackDice(attacker)
 }
 
-// getToHitMod returns Dex + weapon attack bonus for the to-hit roll,
+// getToHitMod returns Dex + weapon attack bonus + skill bonuses for the to-hit roll,
 // preferring BodyInventoryComponent.
 func getToHitMod(attacker *ecs.Entity) int {
 	sc := attacker.GetComponent(rlcomponents.Stats).(*rlcomponents.StatsComponent)
@@ -48,7 +48,36 @@ func getToHitMod(attacker *ecs.Entity) int {
 	} else if attacker.HasComponent(rlcomponents.Inventory) {
 		mod += attacker.GetComponent(rlcomponents.Inventory).(*rlcomponents.InventoryComponent).GetAttackModifier()
 	}
+	if isRangedWeaponEquipped(attacker) {
+		mod += sc.RangedAttackBonus
+	} else {
+		mod += sc.MeleeAttackBonus
+	}
 	return mod
+}
+
+// isRangedWeaponEquipped returns true when the attacker has a ranged weapon equipped.
+func isRangedWeaponEquipped(attacker *ecs.Entity) bool {
+	if attacker.HasComponent(rlcomponents.BodyInventory) {
+		inv := attacker.GetComponent(rlcomponents.BodyInventory).(*rlcomponents.BodyInventoryComponent)
+		for _, item := range inv.Equipped {
+			if item != nil && item.HasComponent(rlcomponents.Weapon) {
+				if item.GetComponent(rlcomponents.Weapon).(*rlcomponents.WeaponComponent).Ranged {
+					return true
+				}
+			}
+		}
+	} else if attacker.HasComponent(rlcomponents.Inventory) {
+		inv := attacker.GetComponent(rlcomponents.Inventory).(*rlcomponents.InventoryComponent)
+		for _, item := range []*ecs.Entity{inv.RightHand, inv.LeftHand} {
+			if item != nil && item.HasComponent(rlcomponents.Weapon) {
+				if item.GetComponent(rlcomponents.Weapon).(*rlcomponents.WeaponComponent).Ranged {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
 
 // getACBonus returns the total armor defense bonus used for the to-hit roll.
