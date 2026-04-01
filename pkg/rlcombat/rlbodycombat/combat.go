@@ -128,6 +128,8 @@ func SavingThrow(entity *ecs.Entity, saveType string, dc int, damageType string,
 		mod = rlcombat.GetModifier(sc.Str)
 	case "dex":
 		mod = rlcombat.GetModifier(sc.Dex)
+	case "con":
+		mod = rlcombat.GetModifier(sc.Con)
 	case "int":
 		mod = rlcombat.GetModifier(sc.Int)
 	case "wis":

@@ -7,6 +7,7 @@ type StatsComponent struct {
 	AC              int
 	Str             int
 	Dex             int
+	Con             int
 	Int             int
 	Wis             int
 	BasicAttackDice string

@@ -22,6 +22,8 @@ const (
 	Poisoned        ecs.ComponentType = "Poisoned"
 	Poisonous       ecs.ComponentType = "Poisonous"
 	Burning         ecs.ComponentType = "Burning"
+	Haste           ecs.ComponentType = "Haste"
+	Slowed          ecs.ComponentType = "Slowed"
 	Regeneration    ecs.ComponentType = "Regeneration"
 	LightSensitive  ecs.ComponentType = "LightSensitive"
 	Light           ecs.ComponentType = "Light"

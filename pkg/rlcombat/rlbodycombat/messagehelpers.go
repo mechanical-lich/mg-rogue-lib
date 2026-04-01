@@ -8,19 +8,30 @@ import (
 
 func postHitMessage(entity, entityHit *ecs.Entity, partName string, damage int, damageType string, crit, broken, amputated bool, pc *rlcomponents.PositionComponent) {
 	atkName, defName := getEntityName(entity), getEntityName(entityHit)
+	// Post the main hit event (no broken/amputated flags — those fire separately).
 	event.GetQueuedInstance().QueueEvent(CombatEvent{
 		X: pc.GetX(), Y: pc.GetY(), Z: pc.GetZ(),
 		Attacker:     entity,
 		Defender:     entityHit,
 		AttackerName: atkName,
 		DefenderName: defName,
+		Source:       getWeaponName(entity),
 		Damage:       damage,
 		DamageType:   damageType,
 		BodyPart:     partName,
 		Crit:         crit,
-		Broken:       broken,
-		Amputated:    amputated,
 	})
+	// Post a separate event for broken/amputated so the listener can format it independently.
+	if broken || amputated {
+		event.GetQueuedInstance().QueueEvent(CombatEvent{
+			X: pc.GetX(), Y: pc.GetY(), Z: pc.GetZ(),
+			Defender:     entityHit,
+			DefenderName: defName,
+			BodyPart:     partName,
+			Broken:       broken,
+			Amputated:    amputated,
+		})
+	}
 }
 
 func postSaveFailMessage(entityHit *ecs.Entity, partName string, damage int, damageType string, broken, amputated bool, pc *rlcomponents.PositionComponent) {

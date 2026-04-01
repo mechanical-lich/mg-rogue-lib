@@ -21,6 +21,10 @@ type CombatEvent struct {
 	AttackerName string
 	DefenderName string
 
+	// Source is the weapon, skill, or ability that caused the attack or save.
+	// e.g. "laser trimmers", "fist", "poisonous bite", "flamethrower".
+	Source string
+
 	// Damage dealt. Zero means the attack missed.
 	Damage     int
 	DamageType string

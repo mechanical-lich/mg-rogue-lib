@@ -80,6 +80,31 @@ func isRangedWeaponEquipped(attacker *ecs.Entity) bool {
 	return false
 }
 
+// getWeaponName returns the name of the attacker's equipped weapon, or "fist"
+// if no weapon is equipped.
+func getWeaponName(attacker *ecs.Entity) string {
+	if attacker.HasComponent(rlcomponents.BodyInventory) {
+		inv := attacker.GetComponent(rlcomponents.BodyInventory).(*rlcomponents.BodyInventoryComponent)
+		for _, item := range inv.Equipped {
+			if item != nil && item.HasComponent(rlcomponents.Weapon) {
+				if item.HasComponent(rlcomponents.Description) {
+					return item.GetComponent(rlcomponents.Description).(*rlcomponents.DescriptionComponent).Name
+				}
+			}
+		}
+	} else if attacker.HasComponent(rlcomponents.Inventory) {
+		inv := attacker.GetComponent(rlcomponents.Inventory).(*rlcomponents.InventoryComponent)
+		for _, item := range []*ecs.Entity{inv.RightHand, inv.LeftHand} {
+			if item != nil && item.HasComponent(rlcomponents.Weapon) {
+				if item.HasComponent(rlcomponents.Description) {
+					return item.GetComponent(rlcomponents.Description).(*rlcomponents.DescriptionComponent).Name
+				}
+			}
+		}
+	}
+	return "fist"
+}
+
 // getACBonus returns the total armor defense bonus used for the to-hit roll.
 // All equipped armor counts here; per-part mitigation is handled separately.
 func getACBonus(defender *ecs.Entity) int {

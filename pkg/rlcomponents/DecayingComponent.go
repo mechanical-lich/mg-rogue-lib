@@ -8,3 +8,11 @@ type DecayingComponent interface {
 	Decay() bool
 	GetType() ecs.ComponentType
 }
+
+// SpeedModifier is optionally implemented by status effects that modify an
+// entity's Speed. ApplyOnce applies the effect the first time it is called
+// (idempotent); Revert undoes the effect when the status expires.
+type SpeedModifier interface {
+	ApplyOnce(entity *ecs.Entity)
+	Revert(entity *ecs.Entity)
+}
