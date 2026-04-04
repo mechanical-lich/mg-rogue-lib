@@ -34,6 +34,13 @@ func (c *StatConditionComponent) GetType() ecs.ComponentType {
 	return StatCondition
 }
 
+// GetConditionName returns the condition's display name, satisfying the named
+// interface used by ActiveConditionsComponent for deduplication.
+func (c *StatConditionComponent) GetConditionName() string { return c.Name }
+
+func (c *StatConditionComponent) getDuration() int  { return c.Duration }
+func (c *StatConditionComponent) setDuration(d int) { c.Duration = d }
+
 func (c *StatConditionComponent) Decay() bool {
 	c.Duration--
 	return c.Duration <= 0

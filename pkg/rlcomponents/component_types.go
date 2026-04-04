@@ -42,8 +42,9 @@ const (
 	BodyInventory   ecs.ComponentType = "BodyInventory"
 	Drops           ecs.ComponentType = "Drops"
 	Energy          ecs.ComponentType = "Energy"
-	StatCondition   ecs.ComponentType = "StatCondition"
-	DamageCondition ecs.ComponentType = "DamageCondition"
+	StatCondition    ecs.ComponentType = "StatCondition"
+	DamageCondition  ecs.ComponentType = "DamageCondition"
+	ActiveConditions ecs.ComponentType = "ActiveConditions"
 )
 
 func init() {

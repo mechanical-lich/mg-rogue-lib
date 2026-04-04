@@ -190,12 +190,16 @@ func TestSlowed_RevertsSpeedOnExpiry(t *testing.T) {
 }
 
 // =============================================================================
-// DamageCondition
+// DamageCondition (via ActiveConditionsComponent)
 // =============================================================================
+
+func addDamageCondition(e *ecs.Entity, c *rlcomponents.DamageConditionComponent) {
+	rlcomponents.GetOrCreateActiveConditions(e).Add(c)
+}
 
 func TestDamageCondition_DealsDamageToHealth(t *testing.T) {
 	e := withHealth(newEntity(), 20)
-	e.AddComponent(&rlcomponents.DamageConditionComponent{
+	addDamageCondition(e, &rlcomponents.DamageConditionComponent{
 		Name:       "Venom",
 		Duration:   3,
 		DamageDice: "3", // constant 3 damage
@@ -210,7 +214,7 @@ func TestDamageCondition_DealsDamageToHealth(t *testing.T) {
 
 func TestDamageCondition_DealsDamageToBodyPart(t *testing.T) {
 	e := withBody(newEntity(), rlcomponents.BodyPart{Name: "torso", HP: 20, MaxHP: 20})
-	e.AddComponent(&rlcomponents.DamageConditionComponent{
+	addDamageCondition(e, &rlcomponents.DamageConditionComponent{
 		Name:       "Acid Burn",
 		Duration:   3,
 		DamageDice: "2",
@@ -225,7 +229,7 @@ func TestDamageCondition_DealsDamageToBodyPart(t *testing.T) {
 
 func TestDamageCondition_ExpiresAfterDuration(t *testing.T) {
 	e := withHealth(newEntity(), 20)
-	e.AddComponent(&rlcomponents.DamageConditionComponent{
+	addDamageCondition(e, &rlcomponents.DamageConditionComponent{
 		Name:       "Venom",
 		Duration:   2,
 		DamageDice: "1",
@@ -235,12 +239,13 @@ func TestDamageCondition_ExpiresAfterDuration(t *testing.T) {
 	tick(sys, e)
 	tick(sys, e)
 
-	assert.False(t, e.HasComponent(rlcomponents.DamageCondition))
+	acc := e.GetComponent(rlcomponents.ActiveConditions).(*rlcomponents.ActiveConditionsComponent)
+	assert.Empty(t, acc.Items, "condition should be removed from ActiveConditions after duration")
 }
 
 func TestDamageCondition_DiceRollDamageIsWithinRange(t *testing.T) {
 	e := withHealth(newEntity(), 1000)
-	e.AddComponent(&rlcomponents.DamageConditionComponent{
+	addDamageCondition(e, &rlcomponents.DamageConditionComponent{
 		Name:       "Venom",
 		Duration:   1,
 		DamageDice: "1d6",

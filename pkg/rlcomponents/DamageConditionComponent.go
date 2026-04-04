@@ -36,6 +36,17 @@ func (c *DamageConditionComponent) Decay() bool {
 	return c.Duration <= 0
 }
 
+// GetConditionName returns the condition's display name, satisfying the named
+// interface used by ActiveConditionsComponent for deduplication.
+func (c *DamageConditionComponent) GetConditionName() string { return c.Name }
+
+// DealDamage returns the damage for one tick (delegates to Roll).
+// It satisfies the DamageDealing interface consumed by ActiveConditionsComponent.
+func (c *DamageConditionComponent) DealDamage() int { return c.Roll() }
+
+func (c *DamageConditionComponent) getDuration() int      { return c.Duration }
+func (c *DamageConditionComponent) setDuration(d int)     { c.Duration = d }
+
 // Roll returns the damage for one tick, evaluated from DamageDice.
 // Returns 1 on any parse error.
 func (c *DamageConditionComponent) Roll() int {

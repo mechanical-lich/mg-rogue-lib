@@ -74,12 +74,19 @@ func (s *StatusConditionSystem) UpdateSystem(data any) error {
 }
 
 func (s *StatusConditionSystem) UpdateEntity(levelInterface any, entity *ecs.Entity) error {
+	// Tick all conditions held in the ActiveConditionsComponent container.
+	if entity.HasComponent(rlcomponents.ActiveConditions) {
+		acc := entity.GetComponent(rlcomponents.ActiveConditions).(*rlcomponents.ActiveConditionsComponent)
+		acc.Tick(entity, applyStatusDamage)
+		if s.OnStatusEffect != nil && len(acc.Items) > 0 {
+			s.OnStatusEffect(entity, "ActiveConditions")
+		}
+	}
+
 	statuses := []statusEntry{
 		{rlcomponents.Poisoned, "Poisoned"},
 		{rlcomponents.Alerted, "Alerted"},
 		{rlcomponents.Burning, "Burning"},
-		{rlcomponents.StatCondition, "StatCondition"},
-		{rlcomponents.DamageCondition, "DamageCondition"},
 	}
 	for name, ct := range s.ExtraStatuses {
 		statuses = append(statuses, statusEntry{ct, name})
@@ -111,8 +118,6 @@ func (s *StatusConditionSystem) UpdateEntity(levelInterface any, entity *ecs.Ent
 			dmg = 1
 		case "Burning":
 			dmg = 2
-		case "DamageCondition":
-			dmg = dc.(*rlcomponents.DamageConditionComponent).Roll()
 		}
 		if dmg > 0 {
 			applyStatusDamage(entity, dmg)
