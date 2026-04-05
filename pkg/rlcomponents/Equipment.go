@@ -20,8 +20,9 @@ func (pc WeaponComponent) GetType() ecs.ComponentType {
 
 // ArmorComponent holds defense stats for an armor entity in an inventory slot.
 type ArmorComponent struct {
-	DefenseBonus int
-	Resistances  []string
+	DefenseBonus  int
+	Resistances   []string
+	StoppingPower int // SP value: damage absorbed per hit (effective damage = max(0, Pen - SP))
 }
 
 func (pc ArmorComponent) GetType() ecs.ComponentType {
