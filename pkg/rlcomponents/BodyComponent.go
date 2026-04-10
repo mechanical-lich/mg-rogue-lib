@@ -13,6 +13,7 @@ type BodyPart struct {
 	KillsWhenBroken     bool       // If true, the entity dies when this body part is broken
 	KillsWhenAmputated  bool       // If true, the entity dies when this body part is amputated
 	CompatibleItemSlots []ItemSlot // Item slots that can be equipped to this body part (e.g. "head" can equip "head" slot items)
+	WoundRole           string     // Role for wound penalty calculation: "arm", "leg", "torso", "head", or "" for no penalty
 }
 
 type BodyComponent struct {
