@@ -32,7 +32,8 @@ type TileDefinition struct {
 	StairsDown    bool          `json:"stairsDown"`
 	MovementCost  int           `json:"movementCost"`
 	AutoTile      int           `json:"autoTile"`
-	Variants    []TileVariant `json:"variants"`
+	Variants      []TileVariant `json:"variants"`
+	Resource      string        `json:"resource"`
 }
 
 var (
