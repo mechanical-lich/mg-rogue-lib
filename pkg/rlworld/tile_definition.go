@@ -34,6 +34,10 @@ type TileDefinition struct {
 	AutoTile      int           `json:"autoTile"`
 	Variants      []TileVariant `json:"variants"`
 	Resource      string        `json:"resource"`
+	SpriteWidth   int           `json:"spriteWidth"`   // 0 = use tile width
+	SpriteHeight  int           `json:"spriteHeight"`  // 0 = use tile height
+	SpriteOffsetX int           `json:"spriteOffsetX"`
+	SpriteOffsetY int           `json:"spriteOffsetY"`
 }
 
 var (
