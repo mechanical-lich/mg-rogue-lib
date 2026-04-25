@@ -77,7 +77,7 @@ func (s *StatusConditionSystem) UpdateEntity(levelInterface any, entity *ecs.Ent
 	// Tick all conditions held in the ActiveConditionsComponent container.
 	if entity.HasComponent(rlcomponents.ActiveConditions) {
 		acc := entity.GetComponent(rlcomponents.ActiveConditions).(*rlcomponents.ActiveConditionsComponent)
-		acc.Tick(entity, applyStatusDamage)
+		acc.Tick(entity, levelInterface, applyStatusDamage)
 		if s.OnStatusEffect != nil && len(acc.Items) > 0 {
 			s.OnStatusEffect(entity, "ActiveConditions")
 		}

@@ -8,6 +8,19 @@ type DamageDealing interface {
 	DealDamage() int
 }
 
+// TurnHandler is optionally implemented by conditions that need to run custom
+// logic each turn with access to both the entity and the level.
+type TurnHandler interface {
+	HandleTurn(entity *ecs.Entity, levelData any)
+}
+
+// DeathHandler is optionally implemented by conditions that need to react when
+// the host entity dies. FireDeath should be called by the game's cleanup system
+// on the first frame the entity gains DeadComponent.
+type DeathHandler interface {
+	OnDeath(entity *ecs.Entity, levelData any)
+}
+
 // ActiveConditionsComponent holds multiple decaying conditions on a single
 // entity, working around the ECS one-component-per-type constraint. It allows
 // an entity to have any number of DamageConditionComponent,
@@ -52,7 +65,7 @@ func (c *ActiveConditionsComponent) Add(d DecayingComponent) {
 //     ConditionModifier and the condition is removed from the list.
 //
 // applyDmg may be nil if no damage routing is desired.
-func (c *ActiveConditionsComponent) Tick(entity *ecs.Entity, applyDmg func(*ecs.Entity, int)) {
+func (c *ActiveConditionsComponent) Tick(entity *ecs.Entity, levelData any, applyDmg func(*ecs.Entity, int)) {
 	var remaining []DecayingComponent
 	for _, d := range c.Items {
 		if cm, ok := d.(ConditionModifier); ok {
@@ -67,6 +80,10 @@ func (c *ActiveConditionsComponent) Tick(entity *ecs.Entity, applyDmg func(*ecs.
 			}
 		}
 
+		if th, ok := d.(TurnHandler); ok {
+			th.HandleTurn(entity, levelData)
+		}
+
 		if d.Decay() {
 			if cm, ok := d.(ConditionModifier); ok {
 				cm.Revert(entity)
@@ -76,6 +93,17 @@ func (c *ActiveConditionsComponent) Tick(entity *ecs.Entity, applyDmg func(*ecs.
 		}
 	}
 	c.Items = remaining
+}
+
+// FireDeath calls OnDeath on every condition that implements DeathHandler.
+// Call this from the game's death/cleanup system on the first frame an entity
+// receives DeadComponent, before conditions are removed.
+func (c *ActiveConditionsComponent) FireDeath(entity *ecs.Entity, levelData any) {
+	for _, d := range c.Items {
+		if dh, ok := d.(DeathHandler); ok {
+			dh.OnDeath(entity, levelData)
+		}
+	}
 }
 
 // GetOrCreateActiveConditions returns the entity's ActiveConditionsComponent,

@@ -100,7 +100,7 @@ func TestTick_DealsDamageEachTurn(t *testing.T) {
 	acc := GetOrCreateActiveConditions(e)
 	acc.Add(&DamageConditionComponent{Name: "acid", Duration: 3, DamageDice: "2"})
 
-	acc.Tick(e, damageApplied(e))
+	acc.Tick(e, nil, damageApplied(e))
 
 	hc := e.GetComponent(Health).(*HealthComponent)
 	assert.Equal(t, 18, hc.Health)
@@ -112,7 +112,7 @@ func TestTick_MultipleDamageConditionsApplyAll(t *testing.T) {
 	acc.Add(&DamageConditionComponent{Duration: 3, DamageDice: "3"}) // unnamed — stack
 	acc.Add(&DamageConditionComponent{Duration: 3, DamageDice: "2"}) // unnamed — stack
 
-	acc.Tick(e, damageApplied(e))
+	acc.Tick(e, nil, damageApplied(e))
 
 	hc := e.GetComponent(Health).(*HealthComponent)
 	assert.Equal(t, 25, hc.Health, "both conditions should deal damage")
@@ -123,8 +123,8 @@ func TestTick_RemovesExpiredConditions(t *testing.T) {
 	acc := GetOrCreateActiveConditions(e)
 	acc.Add(&DamageConditionComponent{Name: "venom", Duration: 2, DamageDice: "1"})
 
-	acc.Tick(e, damageApplied(e))
-	acc.Tick(e, damageApplied(e))
+	acc.Tick(e, nil, damageApplied(e))
+	acc.Tick(e, nil, damageApplied(e))
 
 	assert.Empty(t, acc.Items, "expired condition should be removed")
 }
@@ -134,7 +134,7 @@ func TestTick_KeepsNonExpiredConditions(t *testing.T) {
 	acc := GetOrCreateActiveConditions(e)
 	acc.Add(&DamageConditionComponent{Name: "burn", Duration: 5, DamageDice: "1"})
 
-	acc.Tick(e, damageApplied(e))
+	acc.Tick(e, nil, damageApplied(e))
 
 	assert.Len(t, acc.Items, 1, "condition with remaining duration should stay")
 }
@@ -144,7 +144,7 @@ func TestTick_NilDamageFuncDoesNotPanic(t *testing.T) {
 	acc := GetOrCreateActiveConditions(e)
 	acc.Add(&DamageConditionComponent{Name: "acid", Duration: 3, DamageDice: "1d4"})
 
-	assert.NotPanics(t, func() { acc.Tick(e, nil) })
+	assert.NotPanics(t, func() { acc.Tick(e, nil, nil) })
 }
 
 // ---- Tick / stat conditions -------------------------------------------------
@@ -158,7 +158,7 @@ func TestTick_StatConditionAppliesOnFirstTick(t *testing.T) {
 		Mods:     []StatMod{{Stat: "ac", Delta: 3}},
 	})
 
-	acc.Tick(e, nil)
+	acc.Tick(e, nil, nil)
 
 	sc := e.GetComponent(Stats).(*StatsComponent)
 	assert.Equal(t, 13, sc.AC)
@@ -173,8 +173,8 @@ func TestTick_StatConditionNotAppliedTwice(t *testing.T) {
 		Mods:     []StatMod{{Stat: "ac", Delta: 3}},
 	})
 
-	acc.Tick(e, nil)
-	acc.Tick(e, nil)
+	acc.Tick(e, nil, nil)
+	acc.Tick(e, nil, nil)
 
 	sc := e.GetComponent(Stats).(*StatsComponent)
 	assert.Equal(t, 13, sc.AC, "stat bonus must not stack with itself each tick")
@@ -189,8 +189,8 @@ func TestTick_StatConditionRevertsOnExpiry(t *testing.T) {
 		Mods:     []StatMod{{Stat: "str", Delta: -4}},
 	})
 
-	acc.Tick(e, nil)
-	acc.Tick(e, nil)
+	acc.Tick(e, nil, nil)
+	acc.Tick(e, nil, nil)
 
 	sc := e.GetComponent(Stats).(*StatsComponent)
 	assert.Equal(t, 10, sc.Str, "stat must be restored after condition expires")
