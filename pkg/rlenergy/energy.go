@@ -11,6 +11,10 @@ import (
 // the EnergyComponent and removes both markers. Returns true if a turn
 // was resolved.
 func ResolveTurn(entity *ecs.Entity) bool {
+	if entity == nil {
+		return false
+	}
+
 	if !entity.HasComponent(rlcomponents.MyTurn) || !entity.HasComponent(rlcomponents.TurnTaken) {
 		return false
 	}
