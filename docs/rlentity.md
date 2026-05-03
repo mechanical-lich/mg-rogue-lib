@@ -191,6 +191,36 @@ Posts a death message if `watcher` has line-of-sight to `dying` (same Z-level). 
 
 ---
 
+### HitTile
+
+```go
+func HitTile(attacker, target *ecs.Entity) (int, int)
+```
+
+Returns the tile on the target's footprint that is closest to the attacker. Accounts for `SizeComponent` — for a 2×2 target the returned tile is the corner nearest the attacker. Useful for placing hit-effect sprites at the point of contact.
+
+---
+
+### LegWounded
+
+```go
+func LegWounded(entity *ecs.Entity) bool
+```
+
+Returns `true` if the entity has at least one body part with `WoundRole == "leg"` whose HP is below 50% of its max. Does nothing if the entity lacks a `BodyComponent`. Typically used to apply a movement speed penalty.
+
+---
+
+### LegPenaltyCost
+
+```go
+func LegPenaltyCost(entity *ecs.Entity, baseCost int) int
+```
+
+Returns the extra action-point cost to add to movement due to injured legs. Each **broken** leg adds `baseCost / 2`; each **amputated** leg adds `baseCost`. Returns 0 if the entity has no `BodyComponent`. Combine with `LegWounded` or call directly and add to the base move cost.
+
+---
+
 ## Usage Example
 
 ```go

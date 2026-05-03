@@ -387,3 +387,61 @@ func CheckDeathAnnouncement(watcher *ecs.Entity, dying *ecs.Entity, level *rlwor
 		Z:       dp.GetZ(),
 	})
 }
+
+// HitTile returns the world tile on the target's footprint closest to the attacker.
+func HitTile(attacker, target *ecs.Entity) (int, int) {
+	apc := attacker.GetComponent(rlcomponents.Position).(*rlcomponents.PositionComponent)
+	tpc := target.GetComponent(rlcomponents.Position).(*rlcomponents.PositionComponent)
+	tw, th := 1, 1
+	if target.HasComponent(rlcomponents.Size) {
+		sc := target.GetComponent(rlcomponents.Size).(*rlcomponents.SizeComponent)
+		if sc.Width > 0 {
+			tw = sc.Width
+		}
+		if sc.Height > 0 {
+			th = sc.Height
+		}
+	}
+	startX := tpc.GetX() - tw/2
+	startY := tpc.GetY() - th/2
+	return max(startX, min(apc.GetX(), startX+tw-1)),
+		max(startY, min(apc.GetY(), startY+th-1))
+}
+
+// LegWounded returns true if the entity has any leg-role body part below 50% HP.
+func LegWounded(entity *ecs.Entity) bool {
+	if !entity.HasComponent(rlcomponents.Body) {
+		return false
+	}
+	bc := entity.GetComponent(rlcomponents.Body).(*rlcomponents.BodyComponent)
+	for _, part := range bc.Parts {
+		if part.Amputated || part.Broken || part.MaxHP <= 0 {
+			continue
+		}
+		if part.WoundRole == "leg" && part.HP*100/part.MaxHP < 50 {
+			return true
+		}
+	}
+	return false
+}
+
+// LegPenaltyCost returns the extra action cost due to broken or amputated leg parts.
+// Each broken leg adds half the base move cost; each amputated leg adds the full base move cost.
+func LegPenaltyCost(entity *ecs.Entity, baseCost int) int {
+	if !entity.HasComponent(rlcomponents.Body) {
+		return 0
+	}
+	bc := entity.GetComponent(rlcomponents.Body).(*rlcomponents.BodyComponent)
+	extra := 0
+	for _, part := range bc.Parts {
+		if part.WoundRole != "leg" {
+			continue
+		}
+		if part.Amputated {
+			extra += baseCost
+		} else if part.Broken {
+			extra += baseCost / 2
+		}
+	}
+	return extra
+}

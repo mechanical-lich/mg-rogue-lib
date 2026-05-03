@@ -47,6 +47,9 @@ Rather than prescribing a specific game loop, the library is intentionally open:
 | [`rlasciiclient`](rlasciiclient.html) | Ebiten ASCII client: decodes server snapshots into an entity store and renders a tile-grid viewport |
 | [`rltermclient`](rltermclient.html) | Terminal ASCII client (tcell): renders the same snapshots in a headless terminal with GUI overlay support |
 | [`rltermgui`](rltermgui.html) | Lightweight terminal GUI layer (tcell): Views, Pane, GUI manager, and drawing helpers |
+| [`rlaoe`](rlaoe.html) | Tile-offset generators for area-of-effect shapes (cone, circle, ring, line, burst) |
+| [`rlmath`](rlmath.html) | Stateless math utilities: random range, estimated distance, shuffle, sign |
+| [`rlaction`](rlaction.html) | Generic turn-based action interface (`Action[L]`) and affordability helper |
 
 ## Installation
 

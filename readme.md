@@ -16,6 +16,9 @@ simultaneous AI agents.
 | `pkg/rlcombat` | Combat resolution, status effects |
 | `pkg/rlsystems` | Turn-based ECS systems (AI, initiative, cleanup, doors) |
 | `pkg/rlgeneration` | Procedural level generation (rooms, clusters, terrain) |
+| `pkg/rlaoe` | Tile-offset generators for area-of-effect shapes (cone, circle, ring, line, burst) |
+| `pkg/rlmath` | Stateless math utilities (random range, distance, shuffle, sign) |
+| `pkg/rlaction` | Generic turn-based action interface (`Action[L]`) and affordability helper |
 
 ---
 
